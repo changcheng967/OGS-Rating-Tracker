@@ -67,20 +67,23 @@ def store_ratings():
 
 # Update extreme ratings (highest and lowest)
 def update_extreme_ratings(category, new_rating):
-    extreme_rating = supabase.table('extreme_ratings').select('*').eq('category', category).execute().data
-    if not extreme_rating:
-        supabase.table('extreme_ratings').insert({
-            "category": category,
-            "highest": new_rating,
-            "lowest": new_rating
-        }).execute()
-    else:
-        highest = extreme_rating[0]['highest']
-        lowest = extreme_rating[0]['lowest']
-        if new_rating > highest:
-            supabase.table('extreme_ratings').update({"highest": new_rating}).eq('category', category).execute()
-        if new_rating < lowest:
-            supabase.table('extreme_ratings').update({"lowest": new_rating}).eq('category', category).execute()
+    try:
+        extreme_rating = supabase.table('extreme_ratings').select('*').eq('category', category).execute().data
+        if not extreme_rating:
+            supabase.table('extreme_ratings').insert({
+                "category": category,
+                "highest": new_rating,
+                "lowest": new_rating
+            }).execute()
+        else:
+            highest = extreme_rating[0]['highest']
+            lowest = extreme_rating[0]['lowest']
+            if new_rating > highest:
+                supabase.table('extreme_ratings').update({"highest": new_rating}).eq('category', category).execute()
+            if new_rating < lowest:
+                supabase.table('extreme_ratings').update({"lowest": new_rating}).eq('category', category).execute()
+    except Exception as e:
+        print(f"Error updating extreme ratings for {category}: {e}")
 
 # Start background thread
 threading.Thread(target=store_ratings, daemon=True).start()
@@ -88,19 +91,28 @@ threading.Thread(target=store_ratings, daemon=True).start()
 # Routes
 @app.route('/')
 def index():
-    extreme_ratings = supabase.table('extreme_ratings').select('*').execute().data
-    return render_template('index.html', extreme_ratings=extreme_ratings)
+    try:
+        extreme_ratings = supabase.table('extreme_ratings').select('*').execute().data
+        if not extreme_ratings:
+            print("No extreme ratings found.")
+        return render_template('index.html', extreme_ratings=extreme_ratings)
+    except Exception as e:
+        print(f"Error fetching extreme ratings: {e}")
+        return render_template('index.html', extreme_ratings=None)
 
 @app.route('/history/<category>')
 def history(category):
     data = []
-    response = supabase.table('ratings').select('timestamp', 'rating').eq('category', category).order('timestamp').execute()
-    for entry in response.data:
-        timestamp = datetime.fromisoformat(entry['timestamp']).astimezone(TORONTO_TZ)
-        data.append({
-            'timestamp': timestamp.strftime('%Y-%m-%d %H:%M:%S %Z'),
-            'rating': entry['rating']
-        })
+    try:
+        response = supabase.table('ratings').select('timestamp', 'rating').eq('category', category).order('timestamp').execute()
+        for entry in response.data:
+            timestamp = datetime.fromisoformat(entry['timestamp']).astimezone(TORONTO_TZ)
+            data.append({
+                'timestamp': timestamp.strftime('%Y-%m-%d %H:%M:%S %Z'),
+                'rating': entry['rating']
+            })
+    except Exception as e:
+        print(f"Error fetching history for {category}: {e}")
     return jsonify(data)
 
 if __name__ == '__main__':
