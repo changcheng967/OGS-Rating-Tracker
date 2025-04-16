@@ -115,5 +115,26 @@ def history(category):
         print(f"Error fetching history for {category}: {e}")
     return jsonify(data)
 
+# New route for extreme ratings
+@app.route('/extreme-ratings')
+def extreme_ratings():
+    try:
+        # Fetch the extreme ratings for all categories
+        data = {}
+        categories = ['overall', '9x9', '13x13', '19x19']
+        for category in categories:
+            response = supabase.table('extreme_ratings').select('*').eq('category', category).execute()
+            if response.data:
+                data[category] = {
+                    'highest': response.data[0]['highest'],
+                    'lowest': response.data[0]['lowest']
+                }
+            else:
+                data[category] = {'highest': 'N/A', 'lowest': 'N/A'}
+        return jsonify(data)
+    except Exception as e:
+        print(f"Error fetching extreme ratings: {e}")
+        return jsonify({'error': 'Failed to fetch extreme ratings'}), 500
+
 if __name__ == '__main__':
     app.run(debug=True)
