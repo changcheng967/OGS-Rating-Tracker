@@ -62,7 +62,25 @@ def store_ratings():
                         "rating": rating
                     }).execute()
                     print(f'[{now_toronto}] {category}: {rating}')
+                    update_extreme_ratings(category, rating)
         time.sleep(5)
+
+# Update extreme ratings (highest and lowest)
+def update_extreme_ratings(category, new_rating):
+    extreme_rating = supabase.table('extreme_ratings').select('*').eq('category', category).execute().data
+    if not extreme_rating:
+        supabase.table('extreme_ratings').insert({
+            "category": category,
+            "highest": new_rating,
+            "lowest": new_rating
+        }).execute()
+    else:
+        highest = extreme_rating[0]['highest']
+        lowest = extreme_rating[0]['lowest']
+        if new_rating > highest:
+            supabase.table('extreme_ratings').update({"highest": new_rating}).eq('category', category).execute()
+        if new_rating < lowest:
+            supabase.table('extreme_ratings').update({"lowest": new_rating}).eq('category', category).execute()
 
 # Start background thread
 threading.Thread(target=store_ratings, daemon=True).start()
@@ -70,7 +88,8 @@ threading.Thread(target=store_ratings, daemon=True).start()
 # Routes
 @app.route('/')
 def index():
-    return render_template('index.html')
+    extreme_ratings = supabase.table('extreme_ratings').select('*').execute().data
+    return render_template('index.html', extreme_ratings=extreme_ratings)
 
 @app.route('/history/<category>')
 def history(category):
